@@ -1,0 +1,174 @@
+-- Grow a Garden Pet Randomizer — Mobile Compatible
+-- Created by: syzxch
+
+-- Services
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local Workspace = game:GetService("Workspace")
+
+local player = Players.LocalPlayer
+local char = player.Character or player.CharacterAdded:Wait()
+
+-- Full Egg → Pet Data (Accurate from Grow a Garden Wiki + Verified Updates)
+local EggData = {
+    ["Common Egg"] = {"Golden Lab", "Dog", "Bunny"},
+    ["Uncommon Egg"] = {"Black Bunny", "Chicken", "Cat", "Deer"},
+    ["Rare Egg"] = {"Orange Tabby", "Spotted Deer", "Pig", "Rooster", "Monkey"},
+    ["Legendary Egg"] = {"Cow", "Silver Monkey", "Sea Otter", "Turtle", "Polar Bear"},
+    ["Mythical Egg"] = {"Grey Mouse", "Brown Mouse", "Squirrel", "Red Giant Ant", "Red Fox"},
+    ["Bug Egg"] = {"Snail", "Giant Ant", "Caterpillar", "Praying Mantis", "Dragonfly"},
+    ["Bee Egg"] = {"Bee", "Honey Bee", "Bear Bee", "Petal Bee", "Queen Bee"},
+    ["Anti Bee Egg"] = {"Wasp", "Tarantula Hawk", "Moth", "Butterfly", "Disco Bee"},
+    ["Common Summer Egg"] = {"Starfish", "Crab", "Seagull"},
+    ["Rare Summer Egg"] = {"Flamingo", "Toucan", "Sea Turtle", "Orangutan", "Seal"},
+    ["Paradise Egg"] = {"Ostrich", "Peacock", "Capybara", "Scarlet Macaw", "Mimic Octopus"},
+    ["Dinosaur Egg"] = {"Raptor", "Triceratops", "Stegosaurus", "Pterodactyl", "Brontosaurus", "T-Rex"},
+    ["Primal Egg"] = {"Parasaurolophus", "Iguanodon", "Pachycephalosaurus", "Dilophosaurus", "Ankylosaurus", "Spinosaurus"},
+    ["Oasis Egg"] = {"Meerkat", "Sand Snake", "Axolotl", "Hyacinth Macaw", "Fennec Fox"},
+    ["Night Egg"] = {"Hedgehog", "Mole", "Frog", "Echo Frog", "Night Owl", "Raccoon"},
+    ["Zen Egg"] = {"Shiba Inu", "Nihonzaru", "Tanuki", "Tanchozuru", "Kappa", "Kitsune"},
+    ["Gourmet Egg"] = {"Bagel Bunny", "Pancake Mole", "Sushi Bear", "Spaghetti Sloth", "French Fry Ferret"},
+}
+
+-- GUI Setup
+local screenGui = Instance.new("ScreenGui", player:WaitForChild("PlayerGui"))
+screenGui.Name = "PetRandomizerUI"
+screenGui.ResetOnSpawn = false
+
+local frame = Instance.new("Frame", screenGui)
+frame.Size = UDim2.new(0, 260, 0, 180)
+frame.Position = UDim2.new(0.5, -130, 0.3, 0)
+frame.BackgroundColor3 = Color3.fromRGB(25,25,25)
+frame.Active = true
+frame.Draggable = true
+Instance.new("UICorner", frame).CornerRadius = UDim.new(0, 8)
+
+local title = Instance.new("TextLabel", frame)
+title.Size = UDim2.new(1,0,0,30)
+title.Position = UDim2.new(0,0,0,0)
+title.BackgroundTransparency = 1
+title.Text = "🐣 Pet Randomizer"
+title.Font = Enum.Font.GothamBold
+title.TextSize = 18
+title.TextColor3 = Color3.new(1,1,1)
+
+-- Buttons
+local function makeBtn(text, positionY)
+    local btn = Instance.new("TextButton", frame)
+    btn.Size = UDim2.new(0.9, 0, 0, 30)
+    btn.Position = UDim2.new(0.05, 0, 1, positionY)
+    btn.Text = text
+    btn.Font = Enum.Font.Gotham
+    btn.TextSize = 14
+    btn.BackgroundColor3 = Color3.fromRGB(60,60,60)
+    btn.TextColor3 = Color3.new(1,1,1)
+    return btn
+end
+
+local randomBtn = makeBtn("🎲 Randomize", -40)
+local autoBtn = makeBtn("⏱ Auto: OFF", -80)
+local espBtn = makeBtn("🔍 Toggle ESP", -120)
+
+-- Minimize Chat-Head
+local chatHead = Instance.new("ImageButton", screenGui)
+chatHead.Size = UDim2.new(0, 40, 0, 40)
+chatHead.Position = frame.Position + UDim2.new(0, 110, 0, 170)
+chatHead.BackgroundTransparency = 1
+chatHead.Image = "rbxassetid://[YOUR_SYZXCH_LOGO_ID]"
+chatHead.Visible = false
+
+chatHead.MouseButton1Click:Connect(function()
+    frame.Visible = true
+    chatHead.Visible = false
+end)
+
+-- Logic Variables
+local espOn, autoOn = false, false
+local highlights = {}
+
+-- Functions
+local function updateUIAboveEggs()
+    for _, m in ipairs(Workspace:GetDescendants()) do
+        if m:IsA("Model") and EggData[m.Name] then
+            local part = m:FindFirstChildWhichIsA("BasePart")
+            if part then
+                -- Billboard with outline
+                local old = m:FindFirstChild("PetBillboard")
+                if old then old:Destroy() end
+                local bb = Instance.new("BillboardGui", m)
+                bb.Name = "PetBillboard"
+                bb.Size = UDim2.new(0, 120, 0, 25)
+                bb.StudsOffset = Vector3.new(0,3,0)
+                bb.AlwaysOnTop = true
+
+                local label = Instance.new("TextLabel", bb)
+                label.Size = UDim2.new(1,0,1,0)
+                label.BackgroundTransparency = 1
+                label.Text = m.Name .. " | " .. EggData[m.Name][math.random(#EggData[m.Name])]
+                label.TextScaled = true
+                label.Font = Enum.Font.Gotham
+                label.TextSize = 12
+                label.TextColor3 = Color3.new(1,1,1)
+                label.TextStrokeTransparency = 0
+                label.TextStrokeColor3 = Color3.new(0,0,0)
+            end
+        end
+    end
+end
+
+local function highlightEggs()
+    for _, v in ipairs(highlights) do v:Destroy() end
+    highlights = {}
+    if espOn then
+        for _, m in ipairs(Workspace:GetDescendants()) do
+            if m:IsA("Model") and EggData[m.Name] then
+                local part = m:FindFirstChildWhichIsA("BasePart")
+                if part then
+                    local hl = Instance.new("Highlight", m)
+                    hl.Adornee = part
+                    hl.FillTransparency = 0.7
+                    hl.OutlineColor = Color3.fromRGB(0, 255, 0)
+                    table.insert(highlights, hl)
+                end
+            end
+        end
+    end
+end
+
+-- Button Events
+randomBtn.MouseButton1Click:Connect(updateUIAboveEggs)
+autoBtn.MouseButton1Click:Connect(function()
+    autoOn = not autoOn
+    autoBtn.Text = autoOn and "⏱ Auto: ON" or "⏱ Auto: OFF"
+end)
+espBtn.MouseButton1Click:Connect(function()
+    espOn = not espOn
+    espBtn.TextColor3 = espOn and Color3.fromRGB(0,255,0) or Color3.new(1,1,1)
+    highlightEggs()
+end)
+
+-- Auto Loop
+RunService.Heartbeat:Connect(function()
+    if autoOn then updateUIAboveEggs() end
+end)
+
+-- Initial Trigger
+updateUIAboveEggs()
+highlightEggs()
+
+-- Minimize to Chat Head
+local minimized = false
+local function minimize()
+    frame.Visible = false
+    chatHead.Visible = true
+    minimized = true
+end
+minBtn = Instance.new("TextButton", frame)
+minBtn.Size = UDim2.new(0, 20, 0, 20)
+minBtn.Position = UDim2.new(1, -25, 0, 5)
+minBtn.Text = "–"
+minBtn.Font = Enum.Font.GothamBold
+minBtn.TextSize = 18
+minBtn.BackgroundColor3 = Color3.fromRGB(100,100,100)
+minBtn.TextColor3 = Color3.new(1,1,1)
+minBtn.MouseButton1Click:Connect(minimize)
